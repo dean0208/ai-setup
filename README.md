@@ -31,7 +31,7 @@ bash setup-mac.sh
 ## 그램 (Windows) - PowerShell에서 실행
 
 ```powershell
-iex (irm https://raw.githubusercontent.com/dean0208/ai-setup/main/setup-win.ps1)
+powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/dean0208/ai-setup/main/setup-win.ps1)"
 ```
 
 또는 로컬 파일 실행:

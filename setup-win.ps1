@@ -8,6 +8,9 @@
 #    .\setup-win.ps1
 # =============================================================================
 
+# 실행 정책을 현재 프로세스에만 Bypass로 설정 (시스템 영구 변경 없음, 관리자 권한 불필요)
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
 $ErrorActionPreference = "Stop"
 
 function Write-Step  { param($msg) Write-Host "`n[*] $msg" -ForegroundColor Cyan }
