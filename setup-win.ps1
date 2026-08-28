@@ -90,14 +90,29 @@ if (Test-Command "gh") {
 }
 
 Write-Host ""
-Write-Warn "GitHub 로그인이 필요합니다. 브라우저가 열립니다."
 try {
     $ghStatus = gh auth status 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "GitHub 이미 로그인됨"
     } else {
-        gh auth login --web --git-protocol ssh
-        Write-Ok "GitHub 로그인 완료"
+        Write-Host "  GitHub Personal Access Token(PAT)이 필요합니다." -ForegroundColor White
+        Write-Host ""
+        Write-Host "  ① 아래 주소를 브라우저에서 열어주세요:" -ForegroundColor White
+        Write-Host "     https://github.com/settings/tokens/new" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  ② Note 칸에 아무 이름 입력 → 맨 아래 [Generate token] 클릭" -ForegroundColor White
+        Write-Host "  ③ 생성된 토큰(ghp_...) 복사" -ForegroundColor White
+        Write-Host ""
+        $secureToken = Read-Host "  여기에 토큰 붙여넣기" -AsSecureString
+        $ghToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+            [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+        )
+        if ($ghToken) {
+            $ghToken | gh auth login --with-token
+            Write-Ok "GitHub 로그인 완료"
+        } else {
+            Write-Warn "토큰 없이 건너뜀. 나중에 직접 실행: gh auth login"
+        }
     }
 } catch {
     Write-Warn "GitHub 로그인을 나중에 직접 실행하세요: gh auth login"

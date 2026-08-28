@@ -79,12 +79,25 @@ else
 fi
 
 echo ""
-warn "GitHub 로그인이 필요합니다. 브라우저가 열립니다."
 if gh auth status &>/dev/null; then
   ok "GitHub 이미 로그인됨"
 else
-  gh auth login --web --git-protocol ssh
-  ok "GitHub 로그인 완료"
+  echo "  GitHub Personal Access Token(PAT)이 필요합니다."
+  echo ""
+  echo "  ① 아래 주소를 브라우저에서 열어주세요:"
+  echo "     https://github.com/settings/tokens/new"
+  echo ""
+  echo "  ② Note 칸에 아무 이름 입력 → 맨 아래 [Generate token] 클릭"
+  echo "  ③ 생성된 토큰(ghp_...) 복사"
+  echo ""
+  read -rsp "  여기에 토큰 붙여넣기 (입력해도 화면에 안 보임): " gh_token
+  echo ""
+  if [[ -n "$gh_token" ]]; then
+    echo "$gh_token" | gh auth login --with-token
+    ok "GitHub 로그인 완료"
+  else
+    warn "토큰 없이 건너뜀. 나중에 직접 실행: gh auth login"
+  fi
 fi
 
 # ─────────────────────────────────────────────
