@@ -17,7 +17,7 @@ Orca ADE + Claude Code + Hermes 를 원라이너 하나로 설치합니다.
 ## 맥북 (macOS) - 터미널에서 실행
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dean0208/ai-setup/main/setup-mac.sh | bash
+curl -fsSL https://tinyurl.com/2aw2e7se | bash
 ```
 
 또는 로컬 파일 실행:
@@ -31,7 +31,7 @@ bash setup-mac.sh
 ## 그램 (Windows) - PowerShell에서 실행
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "iex (irm https://raw.githubusercontent.com/dean0208/ai-setup/main/setup-win.ps1)"
+powershell -ExecutionPolicy Bypass -Command "iex (irm https://tinyurl.com/2c77hu2w)"
 ```
 
 또는 로컬 파일 실행:
