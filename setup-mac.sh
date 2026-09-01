@@ -41,6 +41,26 @@ read -rp "  계속 진행할까요? (y/N) " confirm
 [[ "$confirm" =~ ^[Yy]$ ]] || { echo "취소됨."; exit 0; }
 
 # ─────────────────────────────────────────────
+section "0/7  Xcode Command Line Tools"
+# ─────────────────────────────────────────────
+if xcode-select -p &>/dev/null; then
+  ok "Xcode CLT 이미 설치됨 ($(xcode-select -p))"
+else
+  log "Xcode Command Line Tools 설치 중 (팝업 없이 자동)..."
+  # 팝업 대신 softwareupdate로 직접 설치
+  CLT_PACKAGE=$(softwareupdate -l 2>/dev/null | grep -o "Command Line Tools for Xcode-[0-9.]*" | head -1)
+  if [[ -n "$CLT_PACKAGE" ]]; then
+    sudo softwareupdate --install "$CLT_PACKAGE" --agree-to-license
+  else
+    # softwareupdate 목록에 없으면 xcode-select --install 트리거 후 대기
+    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+    sudo softwareupdate --install --all --agree-to-license 2>/dev/null || true
+    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  fi
+  ok "Xcode CLT 설치 완료"
+fi
+
+# ─────────────────────────────────────────────
 section "1/7  Homebrew"
 # ─────────────────────────────────────────────
 if command -v brew &>/dev/null; then
@@ -68,7 +88,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "3/7  GitHub CLI (gh)"
+section "3/7  GitHub CLI (gh) + 로그인"
 # ─────────────────────────────────────────────
 if command -v gh &>/dev/null; then
   ok "GitHub CLI 이미 설치됨 ($(gh --version | head -1))"
@@ -98,6 +118,29 @@ else
   else
     warn "토큰 없이 건너뜀. 나중에 직접 실행: gh auth login"
   fi
+fi
+
+# git config (이름/이메일 미설정 시 자동 설정)
+GIT_NAME=$(git config --global user.name 2>/dev/null || true)
+GIT_EMAIL=$(git config --global user.email 2>/dev/null || true)
+if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
+  echo ""
+  log "Git 사용자 정보 설정 (Orca ADE 필수)"
+  GH_USER=$(gh api user --jq '.name // .login' 2>/dev/null || echo "")
+  GH_EMAIL=$(gh api user/emails --jq '[.[] | select(.primary==true)] | .[0].email' 2>/dev/null || echo "")
+  if [[ -n "$GH_USER" && -n "$GH_EMAIL" ]]; then
+    git config --global user.name "$GH_USER"
+    git config --global user.email "$GH_EMAIL"
+    ok "Git 사용자 정보 자동 설정: $GH_USER <$GH_EMAIL>"
+  else
+    read -rp "  이름 입력 (예: 홍길동): " git_name
+    read -rp "  이메일 입력 (예: hong@company.com): " git_email
+    git config --global user.name "$git_name"
+    git config --global user.email "$git_email"
+    ok "Git 사용자 정보 설정 완료"
+  fi
+else
+  ok "Git 사용자 정보 이미 설정됨 ($GIT_NAME)"
 fi
 
 # ─────────────────────────────────────────────
