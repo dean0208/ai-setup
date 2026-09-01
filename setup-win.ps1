@@ -190,29 +190,6 @@ if (Test-Command "hermes") {
 # ─────────────────────────────────────────────
 #  API 키 설정
 # ─────────────────────────────────────────────
-Write-Host "`n" -NoNewline
-Write-Host "━━━ API 키 설정 ━━━" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Anthropic API 키가 필요합니다."
-Write-Host "  발급: https://console.anthropic.com -> API Keys"
-Write-Host ""
-
-$existingKey = [Environment]::GetEnvironmentVariable("ANTHROPIC_API_KEY", "User")
-if ($existingKey) {
-    Write-Ok "ANTHROPIC_API_KEY 이미 설정됨"
-} else {
-    $apiKey = Read-Host "  Anthropic API 키를 입력하세요 (sk-ant-... / 나중에 설정하려면 Enter)"
-    if ($apiKey) {
-        [Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", $apiKey, "User")
-        $env:ANTHROPIC_API_KEY = $apiKey
-        Write-Ok "API 키 환경변수로 저장됨 (User scope)"
-    } else {
-        Write-Warn "API 키 설정 건너뜀."
-        Write-Warn "나중에 시스템 속성 -> 환경변수에서 ANTHROPIC_API_KEY를 추가하세요."
-    }
-}
-
-# ─────────────────────────────────────────────
 #  완료 요약
 # ─────────────────────────────────────────────
 Write-Host @"

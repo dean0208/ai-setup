@@ -167,29 +167,6 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "API 키 설정"
-# ─────────────────────────────────────────────
-echo ""
-echo "  Anthropic API 키가 필요합니다."
-echo "  발급: https://console.anthropic.com → API Keys"
-echo ""
-
-if [[ -n "$ANTHROPIC_API_KEY" ]]; then
-  ok "ANTHROPIC_API_KEY 환경변수 이미 설정됨"
-else
-  read -rp "  Anthropic API 키를 입력하세요 (sk-ant-... / 나중에 설정하려면 Enter): " api_key
-  if [[ -n "$api_key" ]]; then
-    # zsh / bash 모두 저장
-    echo "export ANTHROPIC_API_KEY=\"$api_key\"" >> "$SHELL_RC"
-    export ANTHROPIC_API_KEY="$api_key"
-    ok "API 키 저장됨 ($SHELL_RC)"
-  else
-    warn "API 키 설정 건너뜀. 나중에 직접 추가하세요:"
-    warn "  echo 'export ANTHROPIC_API_KEY=\"sk-ant-...\"' >> ~/.zshrc"
-  fi
-fi
-
-# ─────────────────────────────────────────────
 #  완료 요약
 # ─────────────────────────────────────────────
 echo ""
