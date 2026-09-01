@@ -160,7 +160,7 @@ if command -v hermes &>/dev/null; then
   ok "Hermes 이미 설치됨"
 else
   log "Hermes 설치 중 (약 1-3분 소요)..."
-  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash --skip-setup
+  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup
   # PATH 재로드
   export PATH="$HOME/.hermes/bin:$PATH"
   ok "Hermes 설치 완료"
