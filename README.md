@@ -17,7 +17,7 @@ Orca ADE + Claude Code + Hermes 를 원라이너 하나로 설치합니다.
 ## 맥북 (macOS) - 터미널에서 실행
 
 ```bash
-curl -fsSL https://tinyurl.com/2aw2e7se | bash
+curl -fsSL https://tinyurl.com/2aw2e7se -o /tmp/setup-mac.sh && bash /tmp/setup-mac.sh
 ```
 
 또는 로컬 파일 실행:
