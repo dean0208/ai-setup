@@ -1,32 +1,37 @@
 # =============================================================================
 #  AI 개발환경 자동 설치 스크립트 - Windows (PowerShell)
-#  설치 항목: Git, Node.js, Orca ADE, Claude Code, Hermes, GitHub CLI
-#  사용법 (PowerShell 관리자 권한):
-#    iex (irm https://raw.githubusercontent.com/YOUR_ORG/setup/main/setup-win.ps1)
-#  또는 로컬 실행:
-#    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-#    .\setup-win.ps1
+#  설치 항목: Git, GitHub CLI, Node.js, Orca ADE, Claude Code, Hermes
+#  사용법 (PowerShell):
+#    powershell -ExecutionPolicy Bypass -Command "iex (irm https://tinyurl.com/2c77hu2w)"
 # =============================================================================
 
-# 실행 정책을 현재 프로세스에만 Bypass로 설정 (시스템 영구 변경 없음, 관리자 권한 불필요)
+# 실행 정책 Bypass (현재 프로세스에만 적용, 시스템 변경 없음)
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+
+# 관리자 권한 확인 및 자동 재실행
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "[!] 관리자 권한으로 재실행 중..." -ForegroundColor Yellow
+    $scriptUrl = "https://tinyurl.com/2c77hu2w"
+    Start-Process powershell -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -Command `"iex (irm '$scriptUrl')`"" -Wait
+    exit
+}
 
 $ErrorActionPreference = "Stop"
 
-function Write-Step  { param($msg) Write-Host "`n[*] $msg" -ForegroundColor Cyan }
-function Write-Ok    { param($msg) Write-Host "[✓] $msg" -ForegroundColor Green }
-function Write-Warn  { param($msg) Write-Host "[!] $msg" -ForegroundColor Yellow }
-function Write-Fail  { param($msg) Write-Host "[✗] $msg" -ForegroundColor Red; exit 1 }
+function Write-Ok   { param($msg) Write-Host "[v] $msg" -ForegroundColor Green }
+function Write-Log  { param($msg) Write-Host "[*] $msg" -ForegroundColor Cyan }
+function Write-Warn { param($msg) Write-Host "[!] $msg" -ForegroundColor Yellow }
+function Write-Sect { param($msg) Write-Host "`n--- $msg ---" -ForegroundColor Cyan }
 
-function Test-Command { param($cmd) return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
+function Test-Cmd { param($cmd) return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
 
-function Add-ToUserPath {
+function Add-ToPath {
     param($newPath)
-    $current = [Environment]::GetEnvironmentVariable("PATH", "User")
+    $current = [Environment]::GetEnvironmentVariable("PATH", "Machine")
     if ($current -notlike "*$newPath*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$current;$newPath", "User")
-        $env:PATH += ";$newPath"
+        [Environment]::SetEnvironmentVariable("PATH", "$current;$newPath", "Machine")
     }
+    if ($env:PATH -notlike "*$newPath*") { $env:PATH += ";$newPath" }
 }
 
 Clear-Host
@@ -37,13 +42,8 @@ Write-Host @"
   ║   Orca ADE + Claude Code + Hermes             ║
   ╚═══════════════════════════════════════════════╝
 
-  이 스크립트는 다음 항목을 자동 설치합니다:
-  • winget (Windows 패키지 매니저, 보통 이미 설치됨)
-  • Git + GitHub CLI (gh)
-  • Orca ADE (AI 에이전트 개발환경)
-  • Node.js
-  • Claude Code (Anthropic AI 코딩 에이전트)
-  • Hermes (AI 오케스트레이터)
+  설치 항목: Git, GitHub CLI, Node.js, Orca ADE,
+             Claude Code, Hermes
 
 "@ -ForegroundColor Cyan
 
@@ -51,168 +51,186 @@ $confirm = Read-Host "  계속 진행할까요? (y/N)"
 if ($confirm -notmatch '^[Yy]$') { Write-Host "취소됨."; exit 0 }
 
 # ─────────────────────────────────────────────
-Write-Step "1/7  winget 확인"
+Write-Sect "1/7  winget 확인"
 # ─────────────────────────────────────────────
-if (Test-Command "winget") {
+if (Test-Cmd "winget") {
     Write-Ok "winget 사용 가능"
 } else {
-    Write-Warn "winget을 찾을 수 없습니다. Microsoft Store에서 'App Installer'를 설치해주세요."
+    Write-Warn "winget 없음. Microsoft Store에서 'App Installer' 설치 후 다시 실행하세요."
     Write-Host "  https://aka.ms/getwinget" -ForegroundColor Yellow
-    Read-Host "설치 후 Enter를 눌러 계속"
+    Read-Host "설치 후 Enter"
 }
 
 # ─────────────────────────────────────────────
-Write-Step "2/7  Git"
+Write-Sect "2/7  Git"
 # ─────────────────────────────────────────────
-if (Test-Command "git") {
+if (Test-Cmd "git") {
     Write-Ok "Git 이미 설치됨 ($(git --version))"
 } else {
-    Write-Host "    Git 설치 중..." -ForegroundColor Gray
+    Write-Log "Git 설치 중..."
     winget install --id Git.Git --silent --accept-package-agreements --accept-source-agreements
-    # PATH 갱신
-    $gitPath = "$env:ProgramFiles\Git\cmd"
-    Add-ToUserPath $gitPath
-    $env:PATH += ";$gitPath"
+    Add-ToPath "$env:ProgramFiles\Git\cmd"
     Write-Ok "Git 설치 완료"
 }
 
 # ─────────────────────────────────────────────
-Write-Step "3/7  GitHub CLI (gh)"
+Write-Sect "3/7  GitHub CLI + 로그인 + git config"
 # ─────────────────────────────────────────────
-if (Test-Command "gh") {
+if (Test-Cmd "gh") {
     Write-Ok "GitHub CLI 이미 설치됨"
 } else {
-    Write-Host "    GitHub CLI 설치 중..." -ForegroundColor Gray
+    Write-Log "GitHub CLI 설치 중..."
     winget install --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
-    $ghPath = "$env:ProgramFiles\GitHub CLI"
-    Add-ToUserPath $ghPath
+    Add-ToPath "$env:ProgramFiles\GitHub CLI"
     Write-Ok "GitHub CLI 설치 완료"
 }
 
-Write-Host ""
+# GitHub 로그인
+$ghLoggedIn = $false
 try {
-    $ghStatus = gh auth status 2>&1
+    gh auth status 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "GitHub 이미 로그인됨"
-    } else {
-        Write-Host "  GitHub Personal Access Token(PAT)이 필요합니다." -ForegroundColor White
-        Write-Host ""
-        Write-Host "  ① 아래 주소를 브라우저에서 열어주세요:" -ForegroundColor White
-        Write-Host "     https://github.com/settings/tokens/new" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "  ② Note 칸에 아무 이름 입력 → 맨 아래 [Generate token] 클릭" -ForegroundColor White
-        Write-Host "  ③ 생성된 토큰(ghp_...) 복사" -ForegroundColor White
-        Write-Host ""
-        $secureToken = Read-Host "  여기에 토큰 붙여넣기" -AsSecureString
-        $ghToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-            [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
-        )
-        if ($ghToken) {
-            $ghToken | gh auth login --with-token
-            Write-Ok "GitHub 로그인 완료"
-        } else {
-            Write-Warn "토큰 없이 건너뜀. 나중에 직접 실행: gh auth login"
-        }
+        $ghLoggedIn = $true
     }
-} catch {
-    Write-Warn "GitHub 로그인을 나중에 직접 실행하세요: gh auth login"
+} catch {}
+
+if (-not $ghLoggedIn) {
+    Write-Host ""
+    Write-Host "  GitHub Personal Access Token(PAT)이 필요합니다." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  [1] 브라우저에서 열기: https://github.com/settings/tokens/new" -ForegroundColor White
+    Write-Host "  [2] Note 칸에 아무 이름 입력 -> 맨 아래 [Generate token] 클릭" -ForegroundColor White
+    Write-Host "  [3] 생성된 토큰(ghp_...) 복사" -ForegroundColor White
+    Write-Host ""
+    $secureToken = Read-Host "  여기에 토큰 붙여넣기" -AsSecureString
+    $ghToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureToken)
+    )
+    if ($ghToken) {
+        $ghToken | gh auth login --with-token
+        Write-Ok "GitHub 로그인 완료"
+        $ghLoggedIn = $true
+    } else {
+        Write-Warn "토큰 없이 건너뜀. 나중에: gh auth login"
+    }
+}
+
+# git config 자동 설정 (Orca ADE 필수)
+$gitName = git config --global user.name 2>$null
+$gitEmail = git config --global user.email 2>$null
+if (-not $gitName -or -not $gitEmail) {
+    Write-Log "Git 사용자 정보 설정 중..."
+    $ghUser = ""
+    $ghEmail = ""
+    if ($ghLoggedIn) {
+        try { $ghUser  = (gh api user --jq '.name // .login' 2>$null).Trim() } catch {}
+        try { $ghEmail = (gh api user/emails --jq '[.[] | select(.primary==true)] | .[0].email' 2>$null).Trim() } catch {}
+    }
+    if ($ghUser -and $ghEmail) {
+        git config --global user.name $ghUser
+        git config --global user.email $ghEmail
+        Write-Ok "Git 사용자 정보 자동 설정: $ghUser <$ghEmail>"
+    } else {
+        $gitName  = Read-Host "  이름 입력 (예: 홍길동)"
+        $gitEmail = Read-Host "  이메일 입력 (예: hong@company.com)"
+        git config --global user.name $gitName
+        git config --global user.email $gitEmail
+        Write-Ok "Git 사용자 정보 설정 완료"
+    }
+} else {
+    Write-Ok "Git 사용자 정보 이미 설정됨 ($gitName)"
 }
 
 # ─────────────────────────────────────────────
-Write-Step "4/7  Node.js"
+Write-Sect "4/7  Node.js"
 # ─────────────────────────────────────────────
-if (Test-Command "node") {
+if (Test-Cmd "node") {
     $nodeVer = node --version
-    Write-Ok "Node.js 이미 설치됨 ($nodeVer)"
     $major = [int]($nodeVer -replace 'v(\d+)\..*','$1')
     if ($major -lt 18) {
-        Write-Warn "Node.js 버전 낮음. 업그레이드 중..."
+        Write-Warn "Node.js 버전 낮음 ($nodeVer). 업그레이드 중..."
         winget upgrade --id OpenJS.NodeJS.LTS --silent --accept-package-agreements
+    } else {
+        Write-Ok "Node.js 이미 설치됨 ($nodeVer)"
     }
 } else {
-    Write-Host "    Node.js 설치 중..." -ForegroundColor Gray
+    Write-Log "Node.js 설치 중..."
     winget install --id OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
-    $nodePath = "$env:ProgramFiles\nodejs"
-    Add-ToUserPath $nodePath
-    $env:PATH += ";$nodePath"
+    Add-ToPath "$env:ProgramFiles\nodejs"
     Write-Ok "Node.js 설치 완료"
 }
 
 # ─────────────────────────────────────────────
-Write-Step "5/7  Orca ADE"
+Write-Sect "5/7  Orca ADE"
 # ─────────────────────────────────────────────
-$orcaPath = "$env:LOCALAPPDATA\Programs\Orca"
-$orcaExe  = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Orca.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-
+$orcaExe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Orca.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($orcaExe) {
     Write-Ok "Orca ADE 이미 설치됨"
 } else {
-    Write-Host "    Orca ADE 다운로드 중..." -ForegroundColor Gray
-    $orcaInstaller = "$env:TEMP\OrcaSetup.exe"
+    Write-Log "Orca ADE 설치 중..."
     try {
-        # winget으로 시도
         winget install --id StablyAI.Orca --silent --accept-package-agreements --accept-source-agreements 2>$null
-        Write-Ok "Orca ADE 설치 완료 (winget)"
+        Write-Ok "Orca ADE 설치 완료"
     } catch {
-        # 직접 다운로드 fallback
-        Write-Host "    공식 사이트에서 다운로드 중..." -ForegroundColor Gray
-        $downloadUrl = "https://github.com/stablyai/orca/releases/latest/download/Orca-Setup-Windows.exe"
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $orcaInstaller -UseBasicParsing
-        Write-Host "    설치 프로그램 실행 중..." -ForegroundColor Gray
-        Start-Process -FilePath $orcaInstaller -ArgumentList "/S" -Wait
-        Remove-Item $orcaInstaller -ErrorAction SilentlyContinue
+        $installer = "$env:TEMP\OrcaSetup.exe"
+        Invoke-WebRequest -Uri "https://github.com/stablyai/orca/releases/latest/download/Orca-Setup-Windows.exe" -OutFile $installer -UseBasicParsing
+        Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+        Remove-Item $installer -ErrorAction SilentlyContinue
         Write-Ok "Orca ADE 설치 완료"
     }
 }
 
 # ─────────────────────────────────────────────
-Write-Step "6/7  Claude Code"
+Write-Sect "6/7  Claude Code"
 # ─────────────────────────────────────────────
-if (Test-Command "claude") {
+if (Test-Cmd "claude") {
     Write-Ok "Claude Code 이미 설치됨"
 } else {
-    Write-Host "    Claude Code 설치 중..." -ForegroundColor Gray
+    Write-Log "Claude Code 설치 중..."
+    # npm.ps1 실행 권한 확보
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
     npm install -g @anthropic-ai/claude-code
     Write-Ok "Claude Code 설치 완료"
 }
 
 # ─────────────────────────────────────────────
-Write-Step "7/7  Hermes (AI 오케스트레이터)"
+Write-Sect "7/7  Hermes"
 # ─────────────────────────────────────────────
-if (Test-Command "hermes") {
+if (Test-Cmd "hermes") {
     Write-Ok "Hermes 이미 설치됨"
 } else {
-    Write-Host "    Hermes 설치 중 (약 1-3분 소요)..." -ForegroundColor Gray
+    Write-Log "Hermes 설치 중 (약 1~3분 소요)..."
     iex (irm https://hermes-agent.nousresearch.com/install.ps1)
+    # PATH 영구 등록
+    $hermesBin = "$env:LOCALAPPDATA\hermes\bin"
+    Add-ToPath $hermesBin
     Write-Ok "Hermes 설치 완료"
 }
 
-# ─────────────────────────────────────────────
-#  API 키 설정
 # ─────────────────────────────────────────────
 #  완료 요약
 # ─────────────────────────────────────────────
 Write-Host @"
 
   ╔═══════════════════════════════════════╗
-  ║       ✓ 설치 완료!                    ║
+  ║         v 설치 완료!                  ║
   ╚═══════════════════════════════════════╝
 "@ -ForegroundColor Green
 
 Write-Host "  설치된 도구:" -ForegroundColor White
-if (Test-Command "git")    { Write-Ok "Git        $(git --version)" }
-if (Test-Command "gh")     { Write-Ok "GitHub CLI" }
-if (Test-Command "node")   { Write-Ok "Node.js    $(node --version)" }
-if (Test-Command "claude") { Write-Ok "Claude Code" }
-if (Test-Command "hermes") { Write-Ok "Hermes" }
-if ($orcaExe -or (Get-Command "orca" -ErrorAction SilentlyContinue)) { Write-Ok "Orca ADE" }
+if (Test-Cmd "git")    { Write-Ok "Git        $(git --version)" }
+if (Test-Cmd "gh")     { Write-Ok "GitHub CLI $(gh --version | Select-Object -First 1)" }
+if (Test-Cmd "node")   { Write-Ok "Node.js    $(node --version)" }
+if (Test-Cmd "claude") { Write-Ok "Claude Code" }
+$hermesBin = "$env:LOCALAPPDATA\hermes\bin\hermes"
+if (Test-Path $hermesBin) { Write-Ok "Hermes" }
 
 Write-Host @"
 
   다음 단계:
-  1. PowerShell을 재시작하세요 (PATH 적용)
-  2. Hermes 초기 설정:  hermes setup
-  3. Orca ADE 실행:     시작 메뉴 -> Orca
-  4. Claude Code 테스트: claude --version
+  1. PowerShell 새 창 열기 (PATH 적용)
+  2. Hermes 설정:   hermes setup
+  3. Orca ADE 실행: 시작 메뉴 -> Orca
 
 "@ -ForegroundColor White

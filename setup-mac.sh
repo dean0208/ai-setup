@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  AI 개발환경 자동 설치 스크립트 - macOS
-#  설치 항목: Homebrew, Git, Orca ADE, Node.js, Claude Code, Hermes, gh CLI
-#  사용법: curl -fsSL <URL>/setup-mac.sh | bash
-#          또는 로컬 실행: bash setup-mac.sh
+#  설치 항목: Xcode CLT, Homebrew, Git, GitHub CLI, Orca ADE, Node.js, Claude Code, Hermes
+#  사용법: curl -fsSL https://tinyurl.com/2aw2e7se -o /tmp/setup-mac.sh && bash /tmp/setup-mac.sh
 # =============================================================================
 
 set -e
@@ -16,11 +15,10 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-log()    { echo -e "${BLUE}[*]${RESET} $1"; }
-ok()     { echo -e "${GREEN}[✓]${RESET} $1"; }
-warn()   { echo -e "${YELLOW}[!]${RESET} $1"; }
-error()  { echo -e "${RED}[✗]${RESET} $1"; exit 1; }
-section(){ echo -e "\n${BOLD}${CYAN}━━━ $1 ━━━${RESET}"; }
+log()     { echo -e "${BLUE}[*]${RESET} $1"; }
+ok()      { echo -e "${GREEN}[✓]${RESET} $1"; }
+warn()    { echo -e "${YELLOW}[!]${RESET} $1"; }
+section() { echo -e "\n${BOLD}${CYAN}━━━ $1 ━━━${RESET}"; }
 
 echo ""
 echo -e "${BOLD}${CYAN}"
@@ -29,39 +27,34 @@ echo "  ║   AI 에이전트 개발환경 자동 설치 (macOS)     ║"
 echo "  ║   Orca ADE + Claude Code + Hermes             ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo -e "${RESET}"
-echo "  이 스크립트는 다음 항목을 자동 설치합니다:"
-echo "  • Homebrew (패키지 매니저)"
-echo "  • Git + GitHub CLI (gh)"
-echo "  • Orca ADE (AI 에이전트 개발환경)"
-echo "  • Node.js"
-echo "  • Claude Code (Anthropic AI 코딩 에이전트)"
-echo "  • Hermes (AI 오케스트레이터)"
+echo "  설치 항목: Xcode CLT, Homebrew, Git, GitHub CLI,"
+echo "             Orca ADE, Node.js, Claude Code, Hermes"
 echo ""
 read -rp "  계속 진행할까요? (y/N) " confirm
 [[ "$confirm" =~ ^[Yy]$ ]] || { echo "취소됨."; exit 0; }
 
 # ─────────────────────────────────────────────
-section "0/7  Xcode Command Line Tools"
+section "1/8  Xcode Command Line Tools"
 # ─────────────────────────────────────────────
 if xcode-select -p &>/dev/null; then
-  ok "Xcode CLT 이미 설치됨 ($(xcode-select -p))"
+  ok "Xcode CLT 이미 설치됨"
 else
-  log "Xcode Command Line Tools 설치 중 (팝업 없이 자동)..."
-  # 팝업 대신 softwareupdate로 직접 설치
-  CLT_PACKAGE=$(softwareupdate -l 2>/dev/null | grep -o "Command Line Tools for Xcode-[0-9.]*" | head -1)
-  if [[ -n "$CLT_PACKAGE" ]]; then
-    sudo softwareupdate --install "$CLT_PACKAGE" --agree-to-license
+  log "Xcode CLT 설치 중 (팝업 없이 자동, 5~10분 소요)..."
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  CLT=$(softwareupdate -l 2>/dev/null \
+    | grep -o "Command Line Tools for Xcode-[0-9.]*" \
+    | sort -V | tail -1)
+  if [[ -n "$CLT" ]]; then
+    sudo softwareupdate --install "$CLT" --agree-to-license
   else
-    # softwareupdate 목록에 없으면 xcode-select --install 트리거 후 대기
-    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
     sudo softwareupdate --install --all --agree-to-license 2>/dev/null || true
-    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   fi
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   ok "Xcode CLT 설치 완료"
 fi
 
 # ─────────────────────────────────────────────
-section "1/7  Homebrew"
+section "2/8  Homebrew"
 # ─────────────────────────────────────────────
 if command -v brew &>/dev/null; then
   ok "Homebrew 이미 설치됨 ($(brew --version | head -1))"
@@ -77,7 +70,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "2/7  Git"
+section "3/8  Git"
 # ─────────────────────────────────────────────
 if command -v git &>/dev/null; then
   ok "Git 이미 설치됨 ($(git --version))"
@@ -88,7 +81,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "3/7  GitHub CLI (gh) + 로그인"
+section "4/8  GitHub CLI + 로그인 + git config"
 # ─────────────────────────────────────────────
 if command -v gh &>/dev/null; then
   ok "GitHub CLI 이미 설치됨 ($(gh --version | head -1))"
@@ -104,9 +97,7 @@ if gh auth status &>/dev/null; then
 else
   echo "  GitHub Personal Access Token(PAT)이 필요합니다."
   echo ""
-  echo "  ① 아래 주소를 브라우저에서 열어주세요:"
-  echo "     https://github.com/settings/tokens/new"
-  echo ""
+  echo "  ① 브라우저에서 열기: https://github.com/settings/tokens/new"
   echo "  ② Note 칸에 아무 이름 입력 → 맨 아래 [Generate token] 클릭"
   echo "  ③ 생성된 토큰(ghp_...) 복사"
   echo ""
@@ -116,16 +107,15 @@ else
     echo "$gh_token" | gh auth login --with-token
     ok "GitHub 로그인 완료"
   else
-    warn "토큰 없이 건너뜀. 나중에 직접 실행: gh auth login"
+    warn "토큰 없이 건너뜀. 나중에: gh auth login"
   fi
 fi
 
-# git config (이름/이메일 미설정 시 자동 설정)
+# git config 자동 설정 (Orca ADE 필수)
 GIT_NAME=$(git config --global user.name 2>/dev/null || true)
 GIT_EMAIL=$(git config --global user.email 2>/dev/null || true)
 if [[ -z "$GIT_NAME" || -z "$GIT_EMAIL" ]]; then
-  echo ""
-  log "Git 사용자 정보 설정 (Orca ADE 필수)"
+  log "Git 사용자 정보 설정 중..."
   GH_USER=$(gh api user --jq '.name // .login' 2>/dev/null || echo "")
   GH_EMAIL=$(gh api user/emails --jq '[.[] | select(.primary==true)] | .[0].email' 2>/dev/null || echo "")
   if [[ -n "$GH_USER" && -n "$GH_EMAIL" ]]; then
@@ -144,7 +134,7 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "4/7  Orca ADE"
+section "5/8  Orca ADE"
 # ─────────────────────────────────────────────
 if [[ -d "/Applications/Orca.app" ]]; then
   ok "Orca ADE 이미 설치됨"
@@ -155,16 +145,16 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "5/7  Node.js"
+section "6/8  Node.js"
 # ─────────────────────────────────────────────
 if command -v node &>/dev/null; then
   NODE_VER=$(node --version)
-  ok "Node.js 이미 설치됨 ($NODE_VER)"
-  # 버전 체크 (18+ 필요)
   MAJOR=$(echo "$NODE_VER" | cut -d. -f1 | tr -d 'v')
   if [[ "$MAJOR" -lt 18 ]]; then
-    warn "Node.js 버전이 너무 낮음 ($NODE_VER). 업그레이드 중..."
+    warn "Node.js 버전 낮음 ($NODE_VER). 업그레이드 중..."
     brew upgrade node
+  else
+    ok "Node.js 이미 설치됨 ($NODE_VER)"
   fi
 else
   log "Node.js 설치 중..."
@@ -172,12 +162,10 @@ else
   ok "Node.js 설치 완료"
 fi
 
-# npm global prefix 설정 (sudo 없이 설치되게)
+# npm global prefix 설정 (sudo 없이 설치)
 NPM_PREFIX="$HOME/.npm-global"
-if [[ ! -d "$NPM_PREFIX" ]]; then
-  mkdir -p "$NPM_PREFIX"
-  npm config set prefix "$NPM_PREFIX"
-fi
+mkdir -p "$NPM_PREFIX"
+npm config set prefix "$NPM_PREFIX"
 SHELL_RC="$HOME/.zshrc"
 [[ "$SHELL" == *bash* ]] && SHELL_RC="$HOME/.bashrc"
 if ! grep -q "npm-global" "$SHELL_RC" 2>/dev/null; then
@@ -186,10 +174,10 @@ fi
 export PATH="$NPM_PREFIX/bin:$PATH"
 
 # ─────────────────────────────────────────────
-section "6/7  Claude Code"
+section "7/8  Claude Code"
 # ─────────────────────────────────────────────
 if command -v claude &>/dev/null; then
-  ok "Claude Code 이미 설치됨 ($(claude --version 2>/dev/null || echo '버전 확인 불가'))"
+  ok "Claude Code 이미 설치됨"
 else
   log "Claude Code 설치 중..."
   npm install -g @anthropic-ai/claude-code
@@ -197,15 +185,17 @@ else
 fi
 
 # ─────────────────────────────────────────────
-section "7/7  Hermes (AI 오케스트레이터)"
+section "8/8  Hermes"
 # ─────────────────────────────────────────────
 if command -v hermes &>/dev/null; then
   ok "Hermes 이미 설치됨"
 else
-  log "Hermes 설치 중 (약 1-3분 소요)..."
+  log "Hermes 설치 중 (약 1~3분 소요)..."
   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup
-  # PATH 재로드
   export PATH="$HOME/.hermes/bin:$PATH"
+  if ! grep -q ".hermes/bin" "$SHELL_RC" 2>/dev/null; then
+    echo 'export PATH="$HOME/.hermes/bin:$PATH"' >> "$SHELL_RC"
+  fi
   ok "Hermes 설치 완료"
 fi
 
@@ -215,11 +205,10 @@ fi
 echo ""
 echo -e "${BOLD}${GREEN}"
 echo "  ╔═══════════════════════════════════════╗"
-echo "  ║       ✓ 설치 완료!                    ║"
+echo "  ║         ✓ 설치 완료!                  ║"
 echo "  ╚═══════════════════════════════════════╝"
 echo -e "${RESET}"
 echo "  설치된 도구:"
-command -v brew   &>/dev/null && echo "  ✓ Homebrew   $(brew --version | head -1)"
 command -v git    &>/dev/null && echo "  ✓ Git        $(git --version)"
 command -v gh     &>/dev/null && echo "  ✓ GitHub CLI $(gh --version | head -1)"
 [[ -d /Applications/Orca.app ]] && echo "  ✓ Orca ADE   (Launchpad에서 실행)"
@@ -228,8 +217,7 @@ command -v claude &>/dev/null && echo "  ✓ Claude Code"
 command -v hermes &>/dev/null && echo "  ✓ Hermes"
 echo ""
 echo "  다음 단계:"
-echo "  1. 터미널을 재시작하거나:  source $SHELL_RC"
-echo "  2. Hermes 초기 설정:       hermes setup"
-echo "  3. Orca ADE 실행:          Launchpad → Orca"
-echo "  4. Claude Code 테스트:     claude --version"
+echo "  1. 터미널 재시작 또는: source $SHELL_RC"
+echo "  2. Hermes 설정:        hermes setup"
+echo "  3. Orca ADE 실행:      Launchpad → Orca"
 echo ""
